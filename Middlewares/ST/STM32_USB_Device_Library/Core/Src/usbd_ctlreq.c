@@ -268,7 +268,6 @@ USBD_StatusTypeDef  USBD_StdDevReq (USBD_HandleTypeDef *pdev , USBD_SetupReqType
 			{
 				USBD_CtlSendData (pdev, edid_3, 3);
 				edid_cntr = 0;
-
 				uint8_t ht[4620];
 				uint8_t result = USBD_OK;
 				do
@@ -281,11 +280,8 @@ USBD_StatusTypeDef  USBD_StdDevReq (USBD_HandleTypeDef *pdev , USBD_SetupReqType
 				 result = USBD_CDC_ReceivePacket(pdev);
 				}
 				while(result != USBD_OK);
-
 				HuffmanTable = ht;
-
 				//tady se to musí nìjak potvrdit jelikož nepøíjde success
-
 				break;
 			}
     }
