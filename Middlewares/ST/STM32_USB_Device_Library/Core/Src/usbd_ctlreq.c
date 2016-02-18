@@ -32,17 +32,11 @@
 #include "usbd_cdc_if.h"
 
 static volatile int cntr = 0;
-static volatile int edid_cntr = 0;
-
 static volatile int crc = 0;
 
 static uint8_t *CryptoKey;
-static uint8_t *HuffmanTable;
-/*
-static uint8_t ReceivedData1[4620] = {};
-static uint8_t ReceivedData2[4620] = {};
-static uint8_t ReceivedData3[4620] = {};
-*/
+//static uint8_t *HuffmanTable;
+
 uint8_t data_before_edid[4] = {0xA4, 0x0D, 0x00, 0x00};
 
 static uint8_t edid_1[64] =
@@ -62,6 +56,8 @@ static uint8_t edid_2[64] =
   		  					};
 
 static uint8_t edid_3[3] ={0x0, 0x0, 0x40};
+
+static uint8_t seq_1[2] ={0x0, 0x40};
 
 
 /** @addtogroup STM32_USBD_STATE_DEVICE_LIBRARY
@@ -176,7 +172,7 @@ USBD_StatusTypeDef  USBD_StdDevReq (USBD_HandleTypeDef *pdev , USBD_SetupReqType
     
   case USB_REQ_SET_ADDRESS:
   {
-	  if((cntr == 7)||(cntr == 8))
+	  if((cntr == 6) || (cntr == 7))
 	  {
 		  USBD_CtlSendData (pdev, data_before_edid, 4);
 		  break;
@@ -251,39 +247,39 @@ USBD_StatusTypeDef  USBD_StdDevReq (USBD_HandleTypeDef *pdev , USBD_SetupReqType
 
   case 0x2:
     {
-    	//Send EDID  - every sequence starts with 0x00
-  		  	edid_cntr++;
-  		  	cntr++;
-  		  	if(edid_cntr == 1)
-  		  	{
-				USBD_CtlSendData (pdev, edid_1, 64);
-				break;
-  		  	}
-  		  	else if(edid_cntr == 2)
-  		  	{
-  		  		USBD_CtlSendData (pdev, edid_2, 64);
-				break;
-  		  	}
-  		  	else if(edid_cntr == 3)
-			{
-				USBD_CtlSendData (pdev, edid_3, 3);
-				edid_cntr = 0;
-				uint8_t ht[4620];
-				uint8_t result = USBD_OK;
-				do
+    	//Send EDID  - every edid sequence starts with 0x00
+    	switch (req->wValue)
+		  {
+			  case 0x0:
 				{
-				 result = USBD_CDC_SetRxBuffer(pdev,  ht);
+					cntr++;
+					USBD_CtlSendData (pdev, edid_1, 64);
+					break;
 				}
-				while(result != USBD_OK);
-				do
+			  case 0x3F00:
 				{
-				 result = USBD_CDC_ReceivePacket(pdev);
+					cntr++;
+					USBD_CtlSendData (pdev, edid_2, 64);
+					break;
 				}
-				while(result != USBD_OK);
-				HuffmanTable = ht;
-				//tady se to musí nìjak potvrdit jeliko nepøíjde success
-				break;
-			}
+			  case 0x7E00:
+				{
+					cntr++;
+					USBD_CtlSendData (pdev, edid_3, 3);
+					break;
+				}
+			  case 0x7F00:
+			  	{
+				  // Some kind of approve?
+			  		cntr++;
+			  		USBD_CtlSendData (pdev, seq_1, 2);
+			  		break;
+			  	}
+			  default:
+				  USBD_CtlError(pdev , req);
+			     break;
+		  }
+    	break;
     }
 
   default:  
@@ -559,7 +555,7 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev ,
   case 0: //!!! switch (req->wValue >> 8), HACK
 	cntr++;
 
-	if((cntr == 5) || (cntr == 6))
+	if((cntr == 4) || (cntr == 5))
 	{
 		uint8_t data2[4] = {0x01, 0x50, 0x00, 0xf1};
 		USBD_CtlSendData (pdev, data2, 4);
